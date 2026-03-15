@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>棋类游戏合集</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 500;
+        }
+        
+        .game-list {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .game-card {
+            background: #2a2a4a;
+            border-radius: 15px;
+            padding: 30px 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .game-card:hover {
+            transform: translateY(-5px);
+            border-color: #4fc3f7;
+        }
+        
+        .game-card .icon {
+            font-size: 4rem;
+            margin-bottom: 15px;
+        }
+        
+        .game-card .name {
+            color: #fff;
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .game-card .desc {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #4fc3f7;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 1rem;
+            display: none;
+        }
+        
+        .back-btn.show {
+            display: block;
+        }
+        
+        .container {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        .container.show {
+            display: block;
+        }
+        
+        /* 通用棋盘样式 */
+        .status {
+            color: #aaa;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            padding: 8px 20px;
+            background: #2a2a4a;
+            border-radius: 20px;
+            text-align: center;
+        }
+        
+        .board canvas {
+            display: block;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            width: 100%;
+        }
+        
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .controls button {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        
+        .btn-restart { background: #e74c3c; color: white; }
+        .btn-undo { background: #3498db; color: white; }
+        
+        /* 五子棋专用 */
+        .gomoku .score {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+        
+        .gomoku .player {
+            padding: 8px 20px;
+            background: #2a2a4a;
+            border-radius: 20px;
+            color: #aaa;
+        }
+        
+        .gomoku .player.active {
+            background: #3a3a5a;
+            color: #fff;
+        }
+        
+        /* 围棋专用 */
+        .go .score-display {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .go .score-box {
+            background: #2a2a4a;
+            padding: 8px 15px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 100px;
+        }
+        
+        .go .score-box .label {
+            color: #888;
+            font-size: 0.8rem;
+        }
+        
+        .go .score-box .value {
+            color: #fff;
+            font-size: 1.1rem;
+        }
+        
+        .go .btn-pass { background: #f39c12; color: white; }
+        .go .btn-count { background: #9b59b6; color: white; }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="showMenu()">← 返回</button>
+    
+    <h1 id="title">棋类游戏</h1>
+    
+    <!-- 游戏选择菜单 -->
+    <div class="game-list" id="gameList">
+        <div class="game-card" onclick="startGame('gomoku')">
+            <div class="icon">⬛</div>
+            <div class="name">五子棋</div>
+            <div class="desc">15×15 黑白对战</div>
+        </div>
+        <div class="game-card" onclick="startGame('go')">
+            <div class="icon">🎯</div>
+            <div class="name">围棋</div>
+            <div class="desc">15×15 围杀对战</div>
+        </div>
+    </div>
+    
+    <!-- 游戏容器 -->
+    <div class="container" id="gameContainer"></div>
+
+    <script>
+        let currentGame = null;
+        
+        function showMenu() {
+            document.getElementById('gameList').style.display = 'flex';
+            document.getElementById('gameContainer').classList.remove('show');
+            document.querySelector('.back-btn').classList.remove('show');
+            document.getElementById('title').textContent = '棋类游戏';
+            currentGame = null;
+        }
+        
+        function startGame(game) {
+            currentGame = game;
+            document.getElementById('gameList').style.display = 'none';
+            document.getElementById('gameContainer').classList.add('show');
+            document.querySelector('.back-btn').classList.add('show');
+            
+            if (game === 'gomoku') {
+                document.getElementById('title').textContent = '五子棋对战';
+                initGomoku();
+            } else {
+                document.getElementById('title').textContent = '围棋对战';
+                initGo();
+            }
+        }
+        
+        // ==================== 五子棋 ====================
+        const GRID_SIZE = 15;
+        let CELL_SIZE, PIECE_RADIUS, MARGIN;
+        
+        function resizeBoard(container) {
+            const screenWidth = Math.min(window.innerWidth - 40, 450);
+            container.style.maxWidth = screenWidth + 'px';
+            CELL_SIZE = (screenWidth - 20) / (GRID_SIZE - 1);
+            PIECE_RADIUS = CELL_SIZE * 0.38;
+            MARGIN = CELL_SIZE / 2;
+            return screenWidth;
+        }
+        
+        let gomokuState = {};
+        
+        function initGomoku() {
+            const container = document.getElementById('gameContainer');
+            container.className = 'container gomoku';
+            const size = resizeBoard(container);
+            
+            container.innerHTML = `
+                <div class="score">
+                    <div class="player black active" id="blackPlayer">⚫ 黑方</div>
+                    <div class="player white" id="whitePlayer">⚪ 白方</div>
+                </div>
+                <div class="status" id="status">当前回合: ⚫ 黑方</div>
+                <div class="board"><canvas id="board" width="${size}" height="${size}"></canvas></div>
+                <div class="controls">
+                    <button class="btn-undo" onclick="gomokuUndo()">↩ 悔棋</button>
+                    <button class="btn-restart" onclick="initGomoku()">🔄 重新开始</button>
+                </div>
+            `;
+            
+            gomokuState = {
+                board: [], currentPlayer: 'black', history: [], gameOver: false
+            };
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                gomokuState.board[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    gomokuState.board[i][j] = null;
+                }
+            }
+            
+            drawGomoku();
+            
+            document.getElementById('board').addEventListener('click', gomokuClick);
+        }
+        
+        function drawGomoku() {
+            const canvas = document.getElementById('board');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#deb887';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(MARGIN, MARGIN + i * CELL_SIZE);
+                ctx.lineTo(MARGIN + (GRID_SIZE - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(MARGIN + i * CELL_SIZE, MARGIN);
+                ctx.lineTo(MARGIN + i * CELL_SIZE, MARGIN + (GRID_SIZE - 1) * CELL_SIZE);
+                ctx.stroke();
+            }
+            
+            // 星位
+            const starPoints = [[3,3], [3,11], [11,3], [11,11], [7,7]];
+            ctx.fillStyle = '#000';
+            for (const [x, y] of starPoints) {
+                ctx.beginPath();
+                ctx.arc(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // 棋子
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (gomokuState.board[i][j]) {
+                        const x = MARGIN + j * CELL_SIZE;
+                        const y = MARGIN + i * CELL_SIZE;
+                        ctx.beginPath();
+                        ctx.arc(x, y, PIECE_RADIUS, 0, Math.PI * 2);
+                        ctx.fillStyle = gomokuState.board[i][j] === 'black' ? '#000' : '#fff';
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        function gomokuClick(e) {
+            if (gomokuState.gameOver) return;
+            
+            const canvas = document.getElementById('board');
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            const col = Math.round((x - MARGIN) / CELL_SIZE);
+            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            
+            if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                if (!gomokuState.board[row][col]) {
+                    gomokuState.history.push({row, col, player: gomokuState.currentPlayer});
+                    gomokuState.board[row][col] = gomokuState.currentPlayer;
+                    
+                    if (gomokuCheckWin(row, col)) {
+                        gomokuState.gameOver = true;
+                        document.getElementById('status').textContent = 
+                            (gomokuState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方') + ' 获胜！🎉';
+                    } else {
+                        gomokuState.currentPlayer = gomokuState.currentPlayer === 'black' ? 'white' : 'black';
+                        document.getElementById('status').textContent = '当前回合: ' + 
+                            (gomokuState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+                    }
+                    
+                    document.getElementById('blackPlayer').classList.toggle('active', gomokuState.currentPlayer === 'black');
+                    document.getElementById('whitePlayer').classList.toggle('active', gomokuState.currentPlayer === 'white');
+                    drawGomoku();
+                }
+            }
+        }
+        
+        function gomokuCheckWin(row, col) {
+            const directions = [[[0,1],[0,-1]], [[1,0],[-1,0]], [[1,1],[-1,-1]], [[1,-1],[-1,1]]];
+            
+            for (const [dir1, dir2] of directions) {
+                let count = 1;
+                
+                for (let i = 1; i < 5; i++) {
+                    const r = row + dir1[0] * i;
+                    const c = col + dir1[1] * i;
+                    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && gomokuState.board[r][c] === gomokuState.currentPlayer) count++;
+                    else break;
+                }
+                
+                for (let i = 1; i < 5; i++) {
+                    const r = row + dir2[0] * i;
+                    const c = col + dir2[1] * i;
+                    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && gomokuState.board[r][c] === gomokuState.currentPlayer) count++;
+                    else break;
+                }
+                
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+        
+        function gomokuUndo() {
+            if (gomokuState.history.length === 0 || gomokuState.gameOver) return;
+            const last = gomokuState.history.pop();
+            gomokuState.board[last.row][last.col] = null;
+            gomokuState.currentPlayer = last.player;
+            gomokuState.gameOver = false;
+            document.getElementById('status').textContent = '当前回合: ' + 
+                (gomokuState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+            document.getElementById('blackPlayer').classList.toggle('active', gomokuState.currentPlayer === 'black');
+            document.getElementById('whitePlayer').classList.toggle('active', gomokuState.currentPlayer === 'white');
+            drawGomoku();
+        }
+        
+        // ==================== 围棋 ====================
+        let goState = {};
+        
+        function initGo() {
+            const container = document.getElementById('gameContainer');
+            container.className = 'container go';
+            const size = resizeBoard(container);
+            
+            container.innerHTML = `
+                <div class="score-display">
+                    <div class="score-box">
+                        <div class="label">⚫ 黑子</div>
+                        <div class="value" id="goBlackStones">0</div>
+                    </div>
+                    <div class="score-box">
+                        <div class="label">⚪ 白子</div>
+                        <div class="value" id="goWhiteStones">0</div>
+                    </div>
+                </div>
+                <div class="status" id="goStatus">当前回合: ⚫ 黑方</div>
+                <div class="board"><canvas id="goBoard" width="${size}" height="${size}"></canvas></div>
+                <div class="controls">
+                    <button class="btn-undo" onclick="goUndo()">↩ 悔棋</button>
+                    <button class="btn-pass" onclick="goPass()">📋 停一手</button>
+                    <button class="btn-count" onclick="goCount()">📊 点目</button>
+                    <button class="btn-restart" onclick="initGo()">🔄 重新开始</button>
+                </div>
+            `;
+            
+            goState = {
+                board: [], currentPlayer: 'black', history: [], captured: {black:0, white:0}, passCount:0
+            };
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                goState.board[i] = [];
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    goState.board[i][j] = null;
+                }
+            }
+            
+            drawGo();
+            
+            document.getElementById('goBoard').addEventListener('click', goClick);
+        }
+        
+        function drawGo() {
+            const canvas = document.getElementById('goBoard');
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#deb887';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < GRID_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(MARGIN, MARGIN + i * CELL_SIZE);
+                ctx.lineTo(MARGIN + (GRID_SIZE - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(MARGIN + i * CELL_SIZE, MARGIN);
+                ctx.lineTo(MARGIN + i * CELL_SIZE, MARGIN + (GRID_SIZE - 1) * CELL_SIZE);
+                ctx.stroke();
+            }
+            
+            // 星位
+            const starPoints = [[3,3], [3,7], [3,11], [7,3], [7,7], [7,11], [11,3], [11,7], [11,11]];
+            ctx.fillStyle = '#000';
+            for (const [x, y] of starPoints) {
+                ctx.beginPath();
+                ctx.arc(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // 棋子
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (goState.board[i][j]) {
+                        const x = MARGIN + j * CELL_SIZE;
+                        const y = MARGIN + i * CELL_SIZE;
+                        ctx.beginPath();
+                        ctx.arc(x, y, PIECE_RADIUS, 0, Math.PI * 2);
+                        ctx.fillStyle = goState.board[i][j] === 'black' ? '#000' : '#fff';
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        function goClick(e) {
+            const canvas = document.getElementById('goBoard');
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            const col = Math.round((x - MARGIN) / CELL_SIZE);
+            const row = Math.round((y - MARGIN) / CELL_SIZE);
+            
+            if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                if (!goState.board[row][col]) {
+                    goState.history.push({
+                        row, col, player: goState.currentPlayer,
+                        board: JSON.stringify(goState.board),
+                        captured: {...goState.captured}
+                    });
+                    
+                    goState.board[row][col] = goState.currentPlayer;
+                    goRemoveDead(goState.currentPlayer === 'black' ? 'white' : 'black');
+                    goState.passCount = 0;
+                    
+                    goState.currentPlayer = goState.currentPlayer === 'black' ? 'white' : 'black';
+                    document.getElementById('goStatus').textContent = '当前回合: ' + 
+                        (goState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+                    
+                    updateGoScore();
+                    drawGo();
+                }
+            }
+        }
+        
+        function goRemoveDead(color) {
+            const toRemove = [];
+            for (let i = 0; i < GRID_SIZE; i++) {
+                for (let j = 0; j < GRID_SIZE; j++) {
+                    if (goState.board[i][j] === color && goCountLiberties(i, j) === 0) {
+                        toRemove.push([i, j]);
+                    }
+                }
+            }
+            
+            for (const [r, c] of toRemove) {
+                goState.board[r][c] = null;
+                goState.captured[color === 'black' ? 'white' : 'black']++;
+            }
+        }
+        
+        function goCountLiberties(row, col) {
+            const color = goState.board[row][col];
+            if (!color) return 0;
+            
+            const visited = new Set();
+            const queue = [[row, col]];
+            let liberties = 0;
+            
+            while (queue.length > 0) {
+                const [r, c] = queue.shift();
+                const key = `${r},${c}`;
+                if (visited.has(key)) continue;
+                if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) continue;
+                
+                visited.add(key);
+                
+                if (goState.board[r][c] === null) liberties++;
+                else if (goState.board[r][c] === color) {
+                    queue.push([r-1,c], [r+1,c], [r,c-1], [r,c+1]);
+                }
+            }
+            
+            return liberties;
+        }
+        
+        function updateGoScore() {
+            document.getElementById('goBlackStones').textContent = goState.captured.white;
+            document.getElementById('goWhiteStones').textContent = goState.captured.black;
+        }
+        
+        function goPass() {
+            goState.passCount++;
+            goState.history.push({pass: true, player: goState.currentPlayer});
+            
+            if (goState.passCount >= 2) {
+                goCount();
+            } else {
+                alert((goState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方') + ' 停一手');
+                goState.currentPlayer = goState.currentPlayer === 'black' ? 'white' : 'black';
+                document.getElementById('goStatus').textContent = '当前回合: ' + 
+                    (goState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+            }
+        }
+        
+        function goCount() {
+            const blackTotal = goState.captured.white + 3.75;
+            const whiteTotal = goState.captured.black;
+            const diff = blackTotal - whiteTotal;
+            const result = diff > 0 ? `黑胜${diff.toFixed(1)}目` : `白胜${(-diff).toFixed(1)}目`;
+            alert('形势判断:\n黑子: ' + (goState.captured.white + 3.75).toFixed(1) + '\n白子: ' + 
+                goState.captured.black + '\n' + result);
+        }
+        
+        function goUndo() {
+            if (goState.history.length === 0) return;
+            const last = goState.history.pop();
+            
+            if (last.pass) {
+                goState.passCount = Math.max(0, goState.passCount - 1);
+            } else {
+                goState.board = JSON.parse(last.board);
+                goState.captured = last.captured;
+            }
+            goState.currentPlayer = last.player;
+            document.getElementById('goStatus').textContent = '当前回合: ' + 
+                (goState.currentPlayer === 'black' ? '⚫ 黑方' : '⚪ 白方');
+            updateGoScore();
+            drawGo();
+        }
+    </script>
+</body>
+</html>
